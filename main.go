@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -237,26 +238,79 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	var s strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1).
+		Bold(true)
+
+	s.WriteString(titleStyle.Render("HyprMon - Monitor Profile Manager"))
+	s.WriteString("\n\n")
+
 	if m.err != nil {
-		return fmt.Sprintf("Error: %v\n\nPress q to quit.", m.err)
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FF5F56")).
+			Bold(true)
+		s.WriteString(errorStyle.Render(fmt.Sprintf("Error: %v", m.err)))
+		s.WriteString("\n\n")
+
+		helpStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#626262")).
+			Italic(true)
+		s.WriteString(helpStyle.Render("Press q to quit."))
+		return s.String()
 	}
 
 	if len(m.profiles) == 0 {
-		return "No hyprmon profiles found.\n\nPress q to quit."
+		noProfilesStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#626262")).
+			Italic(true)
+		s.WriteString(noProfilesStyle.Render("No hyprmon profiles found."))
+		s.WriteString("\n\n")
+
+		helpStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#626262")).
+			Italic(true)
+		s.WriteString(helpStyle.Render("Press q to quit."))
+		return s.String()
 	}
 
-	s := "Available monitor profiles:\n\n"
+	headerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#04B575")).
+		Bold(true)
+	s.WriteString(headerStyle.Render("Available monitor profiles:"))
+	s.WriteString("\n\n")
 
 	for i, profile := range m.profiles {
 		cursor := " "
 		if m.cursor == i {
 			cursor = ">"
 		}
-		s += fmt.Sprintf("%s %d. %s\n", cursor, i+1, profile)
+
+		itemStyle := lipgloss.NewStyle()
+		if m.cursor == i {
+			itemStyle = itemStyle.Background(lipgloss.Color("#383838"))
+		}
+
+		line := fmt.Sprintf("%s %d. %s", cursor, i+1, profile)
+		s.WriteString(itemStyle.Render(line))
+		s.WriteString("\n")
 	}
 
-	s += "\nPress ↑/↓ or mouse wheel to navigate, Enter/click to select, 1-9 for quick select, q/ctrl+c/esc to quit."
-	return s
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#626262")).
+		MarginTop(2)
+
+	help := `
+Controls:
+  ↑/k, ↓/j: Navigate  Enter/Space: Select Profile  1-9: Quick Select
+  Mouse Wheel: Navigate  Click: Select  q/Ctrl+c/Esc: Quit`
+
+	s.WriteString(helpStyle.Render(help))
+
+	return s.String()
 }
 
 func runTUI() {
