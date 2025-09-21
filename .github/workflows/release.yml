@@ -9,25 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-            suffix: ""
-          - goos: linux
-            goarch: arm64
-            suffix: ""
-          - goos: darwin
-            goarch: amd64
-            suffix: ""
-          - goos: darwin
-            goarch: arm64
-            suffix: ""
-          - goos: windows
-            goarch: amd64
-            suffix: ".exe"
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
           - goos: windows
             goarch: arm64
-            suffix: ".exe"
 
     steps:
     - uses: actions/checkout@v4
@@ -35,7 +21,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.25'
+        go-version: '1.25.1'
 
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -52,16 +38,11 @@ jobs:
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
-        CGO_ENABLED: 0
       run: |
-        go build -ldflags="-s -w" -o waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} .
-
-    - name: Create archive
-      run: |
-        if [ "${{ matrix.goos }}" = "windows" ]; then
-          zip waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}.zip waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+        if [ "$GOOS" = "windows" ]; then
+          go build -o waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
         else
-          tar -czf waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+          go build -o waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }} .
         fi
 
     - name: Upload Release Asset
@@ -70,6 +51,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix == '.exe' && '.zip' || '.tar.gz' }}
-        asset_name: waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix == '.exe' && '.zip' || '.tar.gz' }}
-        asset_content_type: ${{ matrix.suffix == '.exe' && 'application/zip' || 'application/gzip' }}
+        asset_path: ./waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+        asset_name: waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+        asset_content_type: application/octet-stream

@@ -7,7 +7,7 @@ on:
     branches: [ master, main ]
 
 jobs:
-  lint-and-test:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,7 +16,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.25'
+        go-version: '1.24.0'
 
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -29,35 +29,29 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Verify dependencies
-      run: go mod verify
-
-    - name: Check formatting
+    - name: Format check
       run: |
         if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-          echo "The following files are not formatted correctly:"
+          echo "The following files are not formatted:"
           gofmt -s -l .
-          echo "Please run 'go fmt ./...' to fix formatting issues."
+          echo "Please run 'go fmt ./...' to format your code."
           exit 1
         fi
 
-    - name: Run go vet
+    - name: Lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+        args: --timeout=5m
+
+    - name: Vet
       run: go vet ./...
 
-    - name: Install staticcheck
-      run: go install honnef.co/go/tools/cmd/staticcheck@latest
-
-    - name: Run staticcheck
-      run: staticcheck ./...
-
-    - name: Install golangci-lint
-      run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
-
-    - name: Run golangci-lint
-      run: golangci-lint run
+    - name: Test
+      run: go test -v ./...
 
     - name: Build
       run: go build -v ./...
 
-    - name: Test
-      run: go test -v ./...
+    - name: Build binary
+      run: go build -o waybar-hyprmon-widget .
