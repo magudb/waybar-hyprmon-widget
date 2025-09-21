@@ -205,32 +205,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.MouseMsg:
-		switch msg.Type {
-		case tea.MouseLeft:
-			// Calculate which profile was clicked based on Y position
-			// Line 0: "Available monitor profiles:"
-			// Line 1: empty line
-			// Line 2 onwards: profiles (starting from cursor line 2)
-			if msg.Y >= 2 && msg.Y < 2+len(m.profiles) {
-				profileIndex := msg.Y - 2
-				if profileIndex >= 0 && profileIndex < len(m.profiles) {
-					m.cursor = profileIndex
-					// Apply the selected profile immediately on click
-					selectedProfile := m.profiles[m.cursor]
-					if err := applyProfile(selectedProfile); err != nil {
-						m.err = fmt.Errorf("failed to apply profile '%s': %v", selectedProfile, err)
-						return m, nil
+		switch msg.Action {
+		case tea.MouseActionPress:
+			if msg.Button == tea.MouseButtonLeft {
+				// Calculate which profile was clicked based on Y position
+				// Line 0: "Available monitor profiles:"
+				// Line 1: empty line
+				// Line 2 onwards: profiles (starting from cursor line 2)
+				if msg.Y >= 2 && msg.Y < 2+len(m.profiles) {
+					profileIndex := msg.Y - 2
+					if profileIndex >= 0 && profileIndex < len(m.profiles) {
+						m.cursor = profileIndex
+						// Apply the selected profile immediately on click
+						selectedProfile := m.profiles[m.cursor]
+						if err := applyProfile(selectedProfile); err != nil {
+							m.err = fmt.Errorf("failed to apply profile '%s': %v", selectedProfile, err)
+							return m, nil
+						}
+						return m, tea.Quit
 					}
-					return m, tea.Quit
 				}
 			}
-		case tea.MouseWheelUp:
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case tea.MouseWheelDown:
-			if m.cursor < len(m.profiles)-1 {
-				m.cursor++
+		case tea.MouseActionMotion:
+			if msg.Button == tea.MouseButtonWheelUp {
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			} else if msg.Button == tea.MouseButtonWheelDown {
+				if m.cursor < len(m.profiles)-1 {
+					m.cursor++
+				}
 			}
 		}
 	}
