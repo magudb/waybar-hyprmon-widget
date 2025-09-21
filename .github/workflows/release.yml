@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux]
         goarch: [amd64, arm64]
 
     steps:
@@ -18,7 +17,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: '1.24.0'
 
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -33,17 +32,13 @@ jobs:
 
     - name: Build binary
       env:
-        GOOS: ${{ matrix.goos }}
+        GOOS: linux
         GOARCH: ${{ matrix.goarch }}
       run: |
-        go build -o waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }} .
+          go build -o waybar-hyprmon-widget-linux-${{ matrix.goarch }} .
 
     - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}
-        asset_name: waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}
-        asset_content_type: application/octet-stream
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release upload ${{ github.event.release.tag_name }} ./waybar-hyprmon-widget-${{ matrix.goarch }}
