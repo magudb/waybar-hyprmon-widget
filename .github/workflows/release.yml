@@ -9,11 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
+        goos: [linux]
         goarch: [amd64, arm64]
-        exclude:
-          - goos: windows
-            goarch: arm64
 
     steps:
     - uses: actions/checkout@v4
@@ -39,11 +36,7 @@ jobs:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
       run: |
-        if [ "$GOOS" = "windows" ]; then
-          go build -o waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
-        else
-          go build -o waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }} .
-        fi
+        go build -o waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }} .
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
@@ -51,6 +44,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
-        asset_name: waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+        asset_path: ./waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}
+        asset_name: waybar-hyprmon-widget-${{ matrix.goos }}-${{ matrix.goarch }}
         asset_content_type: application/octet-stream
