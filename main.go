@@ -88,7 +88,7 @@ func getMonitors() ([]Monitor, error) {
 		return nil, fmt.Errorf("failed to parse hyprctl output: %v", err)
 	}
 
-	var monitors []Monitor
+	monitors := make([]Monitor, 0, len(hyprMonitors))
 	for _, hm := range hyprMonitors {
 		monitor := Monitor{
 			Name:   hm["name"].(string),
@@ -131,7 +131,8 @@ func getTooltipText(monitors []Monitor) string {
 		return "No monitors detected"
 	}
 
-	var lines []string
+	// Pre-allocate slice with estimated capacity: active profile (2) + header (2) + monitors + footer (2)
+	lines := make([]string, 0, len(monitors)+6)
 
 	// Get current active profile
 	activeProfile, err := getActiveProfile()
@@ -169,73 +170,90 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q", "esc":
-			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.profiles)-1 {
-				m.cursor++
-			}
-		case "enter", " ":
-			if len(m.profiles) > 0 {
-				selectedProfile := m.profiles[m.cursor]
-				if err := applyProfile(selectedProfile); err != nil {
-					m.err = fmt.Errorf("failed to apply profile '%s': %v", selectedProfile, err)
-					return m, nil
-				}
-			}
-			return m, tea.Quit
-		default:
-			// Handle number key selection (1-9)
-			if len(msg.String()) == 1 && msg.String() >= "1" && msg.String() <= "9" {
-				num := int(msg.String()[0] - '0')
-				if num > 0 && num <= len(m.profiles) {
-					m.cursor = num - 1
-					selectedProfile := m.profiles[m.cursor]
-					if err := applyProfile(selectedProfile); err != nil {
-						m.err = fmt.Errorf("failed to apply profile '%s': %v", selectedProfile, err)
-						return m, nil
-					}
-					return m, tea.Quit
-				}
-			}
-		}
+		return m.handleKeyMsg(msg)
 	case tea.MouseMsg:
-		switch msg.Action {
-		case tea.MouseActionPress:
-			if msg.Button == tea.MouseButtonLeft {
-				// Calculate which profile was clicked based on Y position
-				// Line 0: "Available monitor profiles:"
-				// Line 1: empty line
-				// Line 2 onwards: profiles (starting from cursor line 2)
-				if msg.Y >= 2 && msg.Y < 2+len(m.profiles) {
-					profileIndex := msg.Y - 2
-					if profileIndex >= 0 && profileIndex < len(m.profiles) {
-						m.cursor = profileIndex
-						// Apply the selected profile immediately on click
-						selectedProfile := m.profiles[m.cursor]
-						if err := applyProfile(selectedProfile); err != nil {
-							m.err = fmt.Errorf("failed to apply profile '%s': %v", selectedProfile, err)
-							return m, nil
-						}
-						return m, tea.Quit
-					}
-				}
-			}
-		case tea.MouseActionMotion:
-			if msg.Button == tea.MouseButtonWheelUp {
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			} else if msg.Button == tea.MouseButtonWheelDown {
-				if m.cursor < len(m.profiles)-1 {
-					m.cursor++
-				}
-			}
+		return m.handleMouseMsg(msg)
+	}
+	return m, nil
+}
+
+func (m model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q", "esc":
+		return m, tea.Quit
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case "down", "j":
+		if m.cursor < len(m.profiles)-1 {
+			m.cursor++
+		}
+	case "enter", " ":
+		return m.selectCurrentProfile()
+	default:
+		return m.handleNumberKey(msg.String())
+	}
+	return m, nil
+}
+
+func (m model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	switch msg.Action {
+	case tea.MouseActionPress:
+		if msg.Button == tea.MouseButtonLeft {
+			return m.handleMouseClick(msg.Y)
+		}
+	case tea.MouseActionMotion:
+		return m.handleMouseWheel(msg.Button)
+	}
+	return m, nil
+}
+
+func (m model) selectCurrentProfile() (tea.Model, tea.Cmd) {
+	if len(m.profiles) > 0 {
+		selectedProfile := m.profiles[m.cursor]
+		if err := applyProfile(selectedProfile); err != nil {
+			m.err = fmt.Errorf("failed to apply profile '%s': %v", selectedProfile, err)
+			return m, nil
+		}
+	}
+	return m, tea.Quit
+}
+
+func (m model) handleNumberKey(key string) (tea.Model, tea.Cmd) {
+	if len(key) == 1 && key >= "1" && key <= "9" {
+		num := int(key[0] - '0')
+		if num > 0 && num <= len(m.profiles) {
+			m.cursor = num - 1
+			return m.selectCurrentProfile()
+		}
+	}
+	return m, nil
+}
+
+func (m model) handleMouseClick(y int) (tea.Model, tea.Cmd) {
+	// Calculate which profile was clicked based on Y position
+	// Line 0: "Available monitor profiles:"
+	// Line 1: empty line
+	// Line 2 onwards: profiles (starting from cursor line 2)
+	if y >= 2 && y < 2+len(m.profiles) {
+		profileIndex := y - 2
+		if profileIndex >= 0 && profileIndex < len(m.profiles) {
+			m.cursor = profileIndex
+			return m.selectCurrentProfile()
+		}
+	}
+	return m, nil
+}
+
+func (m model) handleMouseWheel(button tea.MouseButton) (tea.Model, tea.Cmd) {
+	if button == tea.MouseButtonWheelUp {
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	} else if button == tea.MouseButtonWheelDown {
+		if m.cursor < len(m.profiles)-1 {
+			m.cursor++
 		}
 	}
 	return m, nil
