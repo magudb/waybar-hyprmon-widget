@@ -1,0 +1,10 @@
+{
+    "custom/hyprmon": {
+        "format": "{}",
+        "return-type": "json",
+        "exec": "/path/to/waybar-hyprmon-widget",
+        "interval": 30,
+        "on-click": "/path/to/waybar-hyprmon-widget tui",
+        "tooltip": true
+    }
+}
